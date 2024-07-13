@@ -1,0 +1,150 @@
+---
+title: "Problema2"
+author: "Alonso Rafael"
+date: '2024-07-13'
+output: html_document:
+  toc: yes
+    toc_depth: 4
+    toc_float: yes
+    collapsed: yes
+    smooth_scroll: yes
+    theme: journal
+    highlight: kate
+    df_print: paged
+    code_folding: show
+---
+
+\newpage
+
+
+Cargamos las librerías a usar
+
+```{r message=FALSE,warning=FALSE}
+library(tidyverse)
+library(rio)
+```
+
+Importamos la base_envíos
+
+```{r message=FALSE, warning=FALSE}
+base_envíos <- import("base_envíos.csv")
+base_envíos
+```
+
+
+
+# *Exactitud*
+Medida en que los datos representan correctamente la realidad
+
+```{r}
+base_envíos %>% glimpse()
+```
+
+
+```{r}
+base_envíos %>% filter(
+  `id_envÃ­o`<0 | substr(`fecha_envÃ­o`,3,3) == "-"
+)
+```
+
+
+# *Completitud*
+Medida en que todos los valores necesarios están presentes
+
+```{r message=FALSE, warning=FALSE}
+base_envíos %>% 
+  filter(
+    if_any(everything(), is.na)
+  )
+base_envíos
+```
+
+Visualizamos los datos faltantes por columnas
+```{r message=FALSE, warning=FALSE}
+datos_faltantes <- colSums(is.na(base_envíos))
+datos_faltantes
+```
+
+Completamos los datos faltantes con los siguientes criterios
+
+```{r}
+base_copia <- base_envíos %>% mutate(
+  origen = case_when(
+    !is.na(origen) ~ origen,
+    is.na(origen) ~ "Origen desconocido"
+  ),
+  destino = case_when(
+    !is.na(destino) ~ destino,
+    is.na(destino) ~ "Destino desconocido"
+  ),
+  fecha_entrega = case_when(
+    !is.na(fecha_entrega) ~ fecha_entrega,
+    is.na(fecha_entrega) ~ NA
+  ),
+  `monto_envÃ­o` = case_when(
+    !is.na(`monto_envÃ­o`) ~ `monto_envÃ­o`,
+    is.na(`monto_envÃ­o`) ~ 0
+  )
+)
+base_copia
+```
+
+# *Consistencia*
+Damos consistencia al tipo de variable y su formato respectivo
+
+```{r}
+base_consistente <- base_copia %>% mutate(
+  `id_envÃ­o` = case_when(
+    `id_envÃ­o`<0 ~ as.integer((-1)*`id_envÃ­o`),
+    `id_envÃ­o`>=0 ~ as.integer(`id_envÃ­o`)
+    ),
+  origen = as.character(origen),
+  `fecha_envÃ­o` = as.Date(case_when(
+    substr(`fecha_envÃ­o`,3,3) == "-" ~ paste( substr(`fecha_envÃ­o`,7,10),
+                                              substr(`fecha_envÃ­o`,4,5),
+                                              substr(`fecha_envÃ­o`,1,2),
+                                              sep = "-"),
+    substr(`fecha_envÃ­o`,3,3) != "-" ~ `fecha_envÃ­o`)
+    ),
+  fecha_entrega = as.Date(fecha_entrega, origin = "1969-12-31"),
+  `monto_envÃ­o` = round(`monto_envÃ­o`,2), 
+  duración_envío_días = trunc(as.integer(difftime(fecha_entrega,`fecha_envÃ­o`,units = "days")))
+  )
+base_consistente
+  
+```
+
+```{r}
+base_consistente_corregida <- base_consistente
+
+copia_fechaenvio <- base_consistente_corregida$`fecha_envÃ­o`
+
+base_consistente_corregida$`fecha_envÃ­o`<- base_consistente_corregida$`fecha_envÃ­o` %>% mutate(
+  base_consistente_corregida$`fecha_envÃ­o` = ifelse(base_consistente_corregida$duración_envío_días < 0,copia_fechaenvio,base_consistente_corregida$fecha_entrega)
+)
+base_consistente_corregida$`fecha_envÃ­o`<- base_consistente_corregida$fecha_entrega
+base_consistente_corregida
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+

@@ -1,0 +1,108 @@
+---
+title: "Problema4"
+author: "Alonso Rafael"
+date: '2024-07-13'
+output: html_document:
+  toc: yes
+    toc_depth: 4
+    toc_float: yes
+    collapsed: yes
+    smooth_scroll: yes
+    theme: journal
+    highlight: kate
+    df_print: paged
+    code_folding: show
+---
+
+\newpage
+
+
+Cargamos las librerías a usar
+
+```{r message=FALSE,warning=FALSE}
+library(tidyverse)
+library(rio)
+```
+
+Importamos la base_envíos
+
+```{r message=FALSE, warning=FALSE}
+base_polizas <- import("base_polizas.csv")
+base_polizas
+```
+
+
+
+# *Exactitud*
+Medida en que los datos representan correctamente la realidad
+
+```{r}
+base_polizas %>% glimpse()
+```
+
+
+```{r}
+base_polizas %>% filter(
+  id_poliza<0 | substr(fecha_inicio,3,3) == "-"
+)
+```
+
+
+# *Completitud*
+Medida en que todos los valores necesarios están presentes
+
+```{r message=FALSE, warning=FALSE}
+base_polizas %>% 
+  filter(
+    if_any(everything(), is.na)
+  )
+base_polizas
+```
+
+Visualizamos los datos faltantes por columnas
+```{r message=FALSE, warning=FALSE}
+datos_faltantes <- colSums(is.na(base_polizas))
+datos_faltantes
+```
+
+Completamos los datos faltantes con los siguientes criterios
+
+```{r}
+base_copia <- base_polizas %>% mutate(
+  nombre_cliente = case_when(
+    !is.na(nombre_cliente) ~ nombre_cliente,
+    is.na(nombre_cliente) ~ "Desconocido"
+  ),
+  fecha_fin = case_when(
+    !is.na(fecha_fin) ~ fecha_fin,
+    is.na(fecha_fin) ~ NA
+  ),
+  monto_cobertura = case_when(
+    !is.na(monto_cobertura) ~ monto_cobertura,
+    is.na(monto_cobertura) ~ 0
+  )
+)
+base_copia
+```
+
+# *Consistencia*
+Damos consistencia al tipo de variable y su formato respectivo
+
+```{r}
+base_consistente <- base_copia %>% mutate(
+  id_poliza = case_when(
+    id_poliza<0 ~ as.integer((-1)*id_poliza),
+    id_poliza>=0 ~ as.integer(id_poliza)
+    ),
+  fecha_inicio = as.Date(case_when(
+    substr(fecha_inicio,3,3) == "-" ~ paste( substr(fecha_inicio,7,10),
+                                              substr(fecha_inicio,4,5),
+                                              substr(fecha_inicio,1,2),
+                                              sep = "-"),
+    substr(fecha_inicio,3,3) != "-" ~ fecha_inicio)
+    ),
+  
+  )
+base_consistente
+  
+```
